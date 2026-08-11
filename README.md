@@ -6,26 +6,120 @@
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.x-yellow.svg)](https://scikit-learn.org/)
 [![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen.svg)]()
 
-**ImageCluster** is an advanced Python-based computer vision and machine learning engine that automatically detects faces, extracts **478 3D facial landmarks**, prioritizes **central main subjects**, performs unsupervised **DBSCAN clustering** by person identity, separates multi-person photos into a dedicated **`group`** directory, and renders **multi-panel cluster map visualizations**.
+**ImageCluster** is an advanced Python computer vision and machine learning engine that automatically detects faces in photos, extracts **478 3D facial landmarks**, prioritizes **central main subjects**, performs unsupervised **DBSCAN clustering** by person identity, routes multi-person photos into a dedicated **`group`** folder, and renders **multi-panel cluster map visualizations**.
+
+---
+
+## 📁 Repository Directory Structure & File Descriptions
+
+```
+ImageCluster/
+├── .gitignore                      # Git configuration to exclude virtualenv, model binaries & storage caches
+├── README.md                       # Complete documentation, architecture & file descriptions
+├── requirements.txt                # Required Python dependencies
+└── backend/
+    ├── ai/
+    │   ├── cluster.py              # Main end-to-end facial clustering & file organization pipeline
+    │   ├── draw_result.py          # MediaPipe drawing utilities for rendering facial landmark meshes
+    │   ├── face_detector.py        # Central face detection, 3D landmark feature extraction & centrality scoring
+    │   ├── face_scan.py            # Standalone visual testing script for face detection & landmark scanning
+    │   ├── file_config.py          # Path resolution manager & image delivery tracking history
+    │   ├── organizer.py            # File system organizer for person/group folders & JSON result recorder
+    │   ├── visualizer.py           # 2D PCA scatter plot & multi-cluster map graph generation engine
+    │   └── model/                  # Model storage directory (auto-downloaded if missing)
+    │       ├── blaze_face_full_range.tflite # MediaPipe BlazeFace Full-Range model (DSLR / distance detection)
+    │       ├── blaze_face_short_range.tflite# MediaPipe BlazeFace Short-Range model (selfie / close range)
+    │       └── face_landmarker.task         # MediaPipe 3D Face Landmarker task model (478 3D keypoints)
+    └── storage/
+        ├── delivered_images.json   # History tracker storing file names of already processed images
+        ├── primary/                # Input un-clustered image gallery (*.JPG, *.PNG)
+        └── processed/              # Generated output storage directory
+            ├── clustering_results.json      # Structured JSON report of discovered clusters & face metadata
+            ├── cluster_map_folders.png      # 2D PCA scatter plot with enclosing cluster folder circles
+            ├── clustering_plot.png          # Standard annotated 2D PCA cluster scatter plot
+            ├── cluster_maps/                # Directory containing individual & grid cluster maps
+            │   ├── multi_cluster_maps_grid.png # Multi-panel overview grid of all person clusters
+            │   ├── person_1_cluster_map.png   # Individual cluster map for Person 1
+            │   └── person_N_cluster_map.png   # Individual cluster map for Person N
+            └── clusters/                    # Sorted output directories organized by person identity
+                ├── group/          # Folder storing images featuring 2+ detected people
+                ├── person_1/       # Images where Person 1 is the primary main subject
+                ├── person_2/       # Images where Person 2 is the primary main subject
+                └── person_N/       # Images where Person N is the primary main subject
+```
+
+### 📄 Detailed File Descriptions
+
+#### 1. `backend/ai/cluster.py`
+- **Role**: Main Pipeline Controller.
+- **Functionality**:
+  - Iterates through un-processed images from primary storage.
+  - Calls `detect_faces_with_central_priority()` to extract 3D landmark feature vectors for the main subject of each image.
+  - Flags photos containing $\ge 2$ faces for the `group` folder.
+  - Runs **DBSCAN cosine clustering** (`eps=0.05`) across all central facial feature embeddings.
+  - Invokes `organizer.py` to copy images into `person_1/`, `person_2/`, ... and `group/` subfolders.
+  - Exports complete JSON metadata via `save_clustering_results()`.
+  - Invokes `visualizer.py` to generate 2D PCA scatter plots, folder circle maps, individual person maps, and multi-panel grid figures.
+
+#### 2. `backend/ai/face_detector.py`
+- **Role**: Core Vision & Landmark Feature Extraction Engine.
+- **Functionality**:
+  - Initializes MediaPipe `FaceDetector` (`blaze_face_full_range.tflite` with `blaze_face_short_range.tflite` fallback).
+  - Initializes MediaPipe `FaceLandmarker` (`face_landmarker.task`).
+  - Implements `extract_face_embedding()`: Fuses **478 3D facial landmark coordinates** ($1434$-d vector, 60%), **SIFT geometric keypoints** ($128$-d vector, 25%), and **HSV color histogram** ($256$-d vector, 15%).
+  - Implements `detect_faces_with_central_priority()`: Computes spatial centrality score to select the primary central person in multi-face photos.
+
+#### 3. `backend/ai/face_scan.py`
+- **Role**: Interactive Face & Landmark Visualizer Script.
+- **Functionality**:
+  - `create_from_option()`: Runs face detection, draws bounding boxes, displays image via `cv2_imshow()`, and returns `(mp_image, face_detector_result)`.
+  - `face_landmark_identification()`: Extracts 478 3D facial landmarks, overlays landmark mesh (tessellation, contours, iris connections), and displays annotated images.
+
+#### 4. `backend/ai/draw_result.py`
+- **Role**: MediaPipe Drawing Helper Module.
+- **Functionality**:
+  - Implements `draw_landmarks_on_image()` using MediaPipe `drawing_utils` and `drawing_styles`.
+  - Renders facial mesh tessellation, facial contour lines, and iris connection overlays onto NumPy image arrays.
+
+#### 5. `backend/ai/organizer.py`
+- **Role**: File Organizer & JSON Metric Recorder.
+- **Functionality**:
+  - `organize_images_by_cluster()`: Automatically creates `person_N/` subfolders and a `group/` folder under `storage/processed/clusters/`, copying input images to their destination directories.
+  - `save_clustering_results()`: Exports total face counts, cluster metrics, group image lists, and per-person file mappings to `clustering_results.json`.
+
+#### 6. `backend/ai/visualizer.py`
+- **Role**: Cluster Graph & Map Generator.
+- **Functionality**:
+  - Performs 2D PCA dimensionality reduction on high-dimensional facial landmark feature vectors.
+  - `draw_cluster_map_with_folders()`: Generates scatter plot with translucent folder circles around clusters.
+  - `draw_standard_cluster_plot()`: Renders color-coded PCA scatter plot with image annotations.
+  - `create_multiple_cluster_maps()`: Generates individual per-person cluster maps (`person_N_cluster_map.png`) and a combined multi-panel overview grid figure (`multi_cluster_maps_grid.png`).
+
+#### 7. `backend/ai/file_config.py`
+- **Role**: Configuration & Path Resolution Manager.
+- **Functionality**:
+  - Defines project path constants (`BASE_DIR`, `PRIMARY_STORAGE`, `PROCESSED_STORAGE`, `CLUSTERS_STORAGE`, `TRACK_FILE`).
+  - `get_image()`: Sequentially yields un-processed image paths from `storage/primary/`.
+  - `record_delivered()` / `get_delivered_records()`: Tracks history in `delivered_images.json` to prevent duplicate processing.
 
 ---
 
 ## 📍 Current Project Position & Status
 
-| Feature / Module | Status | Description |
+| Module / Feature | Status | Description |
 | :--- | :---: | :--- |
-| **Full-Range Face Detection** | ✅ Completed | MediaPipe BlazeFace Full-Range model tuned for high-resolution DSLR images (32+ MP) |
-| **Short-Range Fallback** | ✅ Completed | Secondary fallback model for selfie and close-up face detection |
-| **3D Face Landmark Identification** | ✅ Completed | Extracts 478 normalized 3D keypoints $(x, y, z)$ per face and renders landmark mesh overlays |
-| **Central Person Prioritization** | ✅ Completed | Spatial centrality scoring algorithm prioritizes the primary central subject in multi-face photos |
+| **Full-Range Face Detection** | ✅ Completed | MediaPipe BlazeFace Full-Range model tuned for high-resolution DSLR photos (32+ MP) |
+| **Short-Range Fallback** | ✅ Completed | Secondary fallback model for close-up and selfie distance detection |
+| **3D Face Landmark Identification** | ✅ Completed | Extracts 478 normalized 3D keypoints $(x, y, z)$ per face and renders mesh overlays |
+| **Central Person Prioritization** | ✅ Completed | Spatial centrality scoring algorithm selects primary main subject in multi-face photos |
 | **DBSCAN Person Clustering** | ✅ Completed | Cosine-metric DBSCAN clustering groups photos into distinct person folders (`person_1`, `person_2`, ...) |
-| **Multi-Face Group Organization** | ✅ Completed | Photos containing 2+ detected faces are automatically routed into `storage/processed/clusters/group` |
+| **Multi-Face Group Organization** | ✅ Completed | Photos containing 2+ detected faces are automatically copied into `storage/processed/clusters/group` |
 | **Clustering JSON Records** | ✅ Completed | Exports complete mapping metrics, cluster statistics, and image history to `clustering_results.json` |
 | **Multi-Plot Visualization** | ✅ Completed | Generates 2D PCA scatter graphs, folder circle maps, individual person maps, and multi-panel overview grids |
 
 ---
 
-## 🏗️ System Architecture & Workflow Diagram
+## 🏗️ System Architecture & Workflow
 
 ```mermaid
 flowchart TD
@@ -51,87 +145,33 @@ flowchart TD
 
 ---
 
-## 🔬 Core Capabilities
+## 🔬 Key Algorithms & Formulas
 
-### 1. 🎯 Central Person Selection Algorithm
-When an image contains multiple people, standard clustering engines duplicate the image across every detected person. ImageCluster calculates a **Spatial Centrality Score**:
+### 1. 🎯 Central Person Selection Formula
+When an image contains multiple people, ImageCluster calculates a **Spatial Centrality Score** for each face:
 
 $$\text{Centrality Score} = \frac{\text{Face Area} \times \text{Confidence Score}}{1.0 + 2.0 \times \text{Normalized Distance to Image Center}}$$
 
-This ensures each photo is clustered according to its **primary main subject**, while multi-face images are also archived in the `group` folder.
+The face with the highest score is selected as the main subject for person clustering, ensuring each photo belongs to its primary central person.
 
-### 2. 📐 3D Facial Landmark Identification (478 Keypoints)
-MediaPipe `FaceLandmarker` extracts **478 3D landmark points** per face. These points are normalized for scale, rotation, and translation invariance:
-- Eye & Iris contours
-- Lip & Mouth boundary geometry
-- Nose bridge & facial contour mesh
-
-### 3. 📊 Visual Cluster Maps
-The system automatically projects high-dimensional face feature vectors down to 2D using PCA and generates:
-- **`cluster_map_folders.png`**: Overall 2D PCA scatter map with translucent cluster folder circles.
-- **`clustering_plot.png`**: Standard PCA cluster scatter graph with face annotations.
-- **`multi_cluster_maps_grid.png`**: Multi-panel overview grid showing side-by-side plots for each individual person cluster.
-- **`person_N_cluster_map.png`**: Individual cluster map for every discovered person.
+### 2. 📐 3D Facial Landmark Feature Fusion
+MediaPipe `FaceLandmarker` extracts **478 3D landmark points** per face. Coordinates are centered and scale-normalized to achieve translation and scale invariance:
+- $1434$-d normalized 3D landmark geometric vector (60% weight)
+- $128$-d SIFT structural vector (25% weight)
+- $256$-d HSV color histogram vector (15% weight)
 
 ---
 
-## 📁 Repository Directory Structure
+## 🚀 Installation & Quick Start
 
-```
-ImageCluster/
-├── .gitignore                      # Git exclusion rules (venv, model binaries, storage caches)
-├── README.md                       # Documentation & architecture overview
-├── requirements.txt                # Python dependencies
-└── backend/
-    ├── ai/
-    │   ├── cluster.py              # Main clustering execution pipeline
-    │   ├── draw_result.py          # Facial landmark mesh drawing utilities
-    │   ├── face_detector.py        # Detection, centrality scoring & 3D landmark feature extraction
-    │   ├── face_scan.py            # Standalone face detection & landmark visualizer script
-    │   ├── file_config.py          # Storage path resolution & image delivery tracker
-    │   ├── organizer.py            # File copying to person/group subfolders & JSON recorder
-    │   ├── visualizer.py           # PCA scatter plot & multi-cluster map graph generation
-    │   └── model/                  # Model storage directory (auto-downloaded)
-    │       ├── blaze_face_full_range.tflite
-    │       ├── blaze_face_short_range.tflite
-    │       └── face_landmarker.task
-    └── storage/
-        ├── delivered_images.json   # History log of processed images
-        ├── primary/                # Input un-clustered image gallery (*.JPG, *.PNG)
-        └── processed/
-            ├── clustering_results.json
-            ├── cluster_map_folders.png
-            ├── clustering_plot.png
-            ├── cluster_maps/
-            │   ├── multi_cluster_maps_grid.png
-            │   └── person_X_cluster_map.png
-            └── clusters/
-                ├── group/          # Images containing 2+ faces
-                ├── person_1/       # Distinct Person 1 images
-                ├── person_2/       # Distinct Person 2 images
-                └── person_N/
-```
-
----
-
-## 🚀 Installation & Setup Guide
-
-### 1. Prerequisites
-- **Python 3.10+** installed
-- **Git** installed
-
-### 2. Environment Setup
-Clone the repository and initialize a Python virtual environment:
-
+### 1. Environment Setup
 ```bash
 # Clone the repository
 git clone https://github.com/CodeBlue0001/ImageCluster.git
 cd ImageCluster
 
-# Create virtual environment
+# Create & activate virtual environment
 python -m venv .venv
-
-# Activate virtual environment
 # Windows (PowerShell):
 .\.venv\Scripts\Activate.ps1
 # Linux / macOS:
@@ -141,31 +181,24 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
----
+### 2. Running Scripts
 
-## 💻 Running the Pipelines
+- **Facial Landmark Scanner & Visualizer**:
+  ```bash
+  python backend/ai/face_scan.py
+  ```
 
-### 1. Run Facial Scan & 3D Landmark Visualization
-To test face detection and visualize the **478 3D landmark mesh** overlay on input images:
-
-```bash
-python backend/ai/face_scan.py
-```
-
-### 2. Run Main Image Facial Clustering & Organization Pipeline
-To process all un-clustered photos in `backend/storage/primary/`, cluster images by person identity, copy files into `person_N` and `group` folders, and render visual graph maps:
-
-```bash
-python backend/ai/cluster.py
-```
+- **Main Image Clustering & File Organization Pipeline**:
+  ```bash
+  python backend/ai/cluster.py
+  ```
 
 ---
 
 ## 📊 Output Artifacts & Visualizations
 
-After running `cluster.py`, all outputs are saved in `backend/storage/processed/`:
+Output graph plots and records are saved in `backend/storage/processed/`:
 
-- **JSON Summary (`clustering_results.json`)**: Contains total face count, discovered person count, group image list, and full mapping.
 - **Folder Cluster Map (`cluster_map_folders.png`)**:
   
   ![Folder Cluster Map](backend/storage/processed/cluster_map_folders.png)
@@ -176,16 +209,8 @@ After running `cluster.py`, all outputs are saved in `backend/storage/processed/
 
 ---
 
-## 🛠️ Technology Stack
+## 🛠️ Tech Stack & License
 
-- **Computer Vision**: OpenCV (`cv2`), Google MediaPipe Tasks API (`vision.FaceDetector`, `vision.FaceLandmarker`)
-- **Machine Learning**: `scikit-learn` (`DBSCAN`, `PCA`, `StandardScaler`), `numpy`
-- **Data Visualization**: `matplotlib`
-- **File & System Management**: `pathlib`, `shutil`, `json`
-
----
-
-## 📝 License & Acknowledgments
-Distributed under the MIT License. Models provided by [Google MediaPipe](https://developers.google.com/mediapipe).
-#   I m a g e C l u s t e r  
- 
+- **Vision & ML**: MediaPipe Tasks API (`FaceDetector`, `FaceLandmarker`), OpenCV (`cv2`), `scikit-learn` (`DBSCAN`, `PCA`, `StandardScaler`), `numpy`
+- **Visualization & Logging**: `matplotlib`, `json`, `pathlib`, `shutil`
+- **License**: MIT License
