@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.venv/
+venv/
+ENV/
+
+# Model binaries & heavy weights
+backend/ai/model/*.task
+backend/ai/model/*.tflite
+
+# Storage images & output caches (keep directory structure)
+backend/storage/primary/*
+!backend/storage/primary/.gitkeep
+backend/storage/processed/*
+!backend/storage/processed/.gitkeep
+backend/storage/delivered_images.json
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

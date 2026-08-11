@@ -1,0 +1,9 @@
+scikit-learn
+pandas
+# re
+flask
+path
+joblib
+numpy
+media-pipe
+
