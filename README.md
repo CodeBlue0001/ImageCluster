@@ -214,4 +214,5 @@ Output graph plots and records are saved in `backend/storage/processed/`:
 - **Vision & ML**: MediaPipe Tasks API (`FaceDetector`, `FaceLandmarker`), OpenCV (`cv2`), `scikit-learn` (`DBSCAN`, `PCA`, `StandardScaler`), `numpy`
 - **Visualization & Logging**: `matplotlib`, `json`, `pathlib`, `shutil`
 - **License**: MIT License#   I m a g e C l u s t e r  
+ #   I m a g e C l u s t e r  
  
