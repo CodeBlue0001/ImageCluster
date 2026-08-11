@@ -187,3 +187,5 @@ After running `cluster.py`, all outputs are saved in `backend/storage/processed/
 
 ## 📝 License & Acknowledgments
 Distributed under the MIT License. Models provided by [Google MediaPipe](https://developers.google.com/mediapipe).
+#   I m a g e C l u s t e r  
+ 
