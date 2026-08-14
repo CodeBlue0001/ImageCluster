@@ -9,7 +9,7 @@ def init_db():
     
     db=sqlite3.connect("face_data.db")
     cursor=db.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS face_data(face_landmarks BLOB,label TEXT,name TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS face_data(face_landmarks BLOB,label TEXT,name TEXT,Cluster_name TEXT)")
     db.commit()
     db.close()
 
@@ -25,13 +25,15 @@ def find_face_data(face_landmarks):
         face_landmarks=pickle.loads(face_data[0])
         label=face_data[1]
         name=face_data[2]
-        print(face_landmarks)
+        Cluster_name=face_data[3]
+        # print(face_landmarks)
         print(label)
         print(name)
+        print(Cluster_name)
     return face_data
 
     
-def save_face_data(face_landmarks,label,name):
+def save_face_data(face_landmarks,label,name,cluster_name):
     
     init_db()
     face_landmarks=np.array(face_landmarks)
