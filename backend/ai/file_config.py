@@ -12,6 +12,13 @@ TRACK_FILE = BASE_DIR / "storage" / "delivered_images.json"
 IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp')
 
 
+def reset_delivered_records():
+    """Clears the delivered images history so all images can be processed anew."""
+    if TRACK_FILE.exists():
+        with open(TRACK_FILE, "w", encoding="utf-8") as f:
+            json.dump([], f, indent=2)
+
+
 def record_delivered(image_name):
     """Keep record of the delivered image in a file."""
     delivered = get_delivered_records()
@@ -32,24 +39,55 @@ def get_delivered_records():
     return []
 
 
-def get_image():
-    """Returns one by one un-delivered image path from primary storage when called."""
+def get_all_primary_images():
+    """Returns list of all valid image paths in primary storage."""
+    if not PRIMARY_STORAGE.exists():
+        return []
+    return [
+        str(PRIMARY_STORAGE / f.name)
+        for f in sorted(PRIMARY_STORAGE.iterdir())
+        if f.is_file() and f.suffix.lower() in IMAGE_EXTENSIONS
+    ]
+
+
+def get_image(allow_delivered=False):
+    """Returns one by one un-delivered image path from primary storage when called.
+    If allow_delivered is True, ignores the delivered tracking file and yields all images.
+    """
     if not PRIMARY_STORAGE.exists():
         return None
 
     # Get all images from primary storage
     all_images = [
-        f.name for f in PRIMARY_STORAGE.iterdir()
+        f.name for f in sorted(PRIMARY_STORAGE.iterdir())
         if f.is_file() and f.suffix.lower() in IMAGE_EXTENSIONS
     ]
 
     # Get delivered history
-    delivered_images = get_delivered_records()
+    delivered_images = get_delivered_records() if not allow_delivered else []
 
     # Find the next image that hasn't been delivered yet
     for img_name in all_images:
         if img_name not in delivered_images:
-            record_delivered(img_name)
+            if not allow_delivered:
+                record_delivered(img_name)
             return str(PRIMARY_STORAGE / img_name)
 
     return None  # All images delivered
+
+
+def cluster_existence(name, lable):
+    CS = CLUSTERS_STORAGE / str(name)
+    if CS.mkdir(parents=True, exist_ok=True):
+        return True
+    else:
+        return False
+
+
+def create_cluster(name, lable, image):
+    new_cluster = CLUSTERS_STORAGE / str(name)
+    return str(new_cluster)
+
+
+def cluster_image(cluster_name, image):
+    pass
